@@ -1,22 +1,23 @@
-import logging
 import json
+import logging
 import os
-from pathlib import Path
 import sys
-import torch
+from pathlib import Path
 from string import ascii_lowercase
-from tqdm import tqdm
-from hydra.utils import instantiate, to_absolute_path, get_original_cwd
-import hydra
-from omegaconf import OmegaConf, DictConfig
-import click
-from hw_asr.utils import MetricTracker
-import numpy as np
-from hw_asr.utils.util import ROOT_PATH
 
+import click
+import hydra
+import numpy as np
+import torch
+from hydra.utils import get_original_cwd, instantiate, to_absolute_path
+from omegaconf import DictConfig, OmegaConf
+from tqdm import tqdm
+
+from hw_asr.metric import calc_cer, calc_wer
 from hw_asr.trainer import Trainer
+from hw_asr.utils import MetricTracker
 from hw_asr.utils.object_loading import get_dataloaders
-from hw_asr.metric import calc_wer, calc_cer
+from hw_asr.utils.util import ROOT_PATH
 
 
 @hydra.main(version_base=None, config_path="hw_asr/config", config_name="test")
@@ -64,7 +65,6 @@ def main(test_cfg: DictConfig):
     metrics = [
         instantiate(metric, text_encoder=text_encoder) for metric in test_cfg["metrics"]
     ]
-    print(f"{metrics=}")
     tracker = MetricTracker(*[m for m_list in metrics for m in m_list.get_metrics()])
     with torch.no_grad():
         for name, dataloader in dataloaders.items():

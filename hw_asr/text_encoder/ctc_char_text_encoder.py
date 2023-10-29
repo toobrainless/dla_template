@@ -1,12 +1,14 @@
-from typing import List, NamedTuple
 from collections import defaultdict
+from typing import List, NamedTuple
+
 import numpy as np
 import pyctcdecode
 import torch
-from .utils import ctc_beam_search as custom_ctc_beam_search
+
 from hw_asr.utils.util import ROOT_PATH
 
 from .char_text_encoder import CharTextEncoder
+from .utils import ctc_beam_search as custom_ctc_beam_search
 
 
 class Hypothesis(NamedTuple):

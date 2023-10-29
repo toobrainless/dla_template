@@ -6,8 +6,8 @@ from pathlib import Path
 import torch
 from numpy import inf
 
-from hw_asr.model import BaseModel
 from hw_asr.logger import get_visualizer
+from hw_asr.model import BaseModel
 from hw_asr.utils.util import getcwd
 
 

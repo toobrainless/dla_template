@@ -1,12 +1,12 @@
 import json
+import logging
 from collections import OrderedDict
 from itertools import repeat
 from pathlib import Path
-import logging
 
+import hydra
 import pandas as pd
 import torch
-import hydra
 
 ROOT_PATH = Path(__file__).absolute().resolve().parent.parent.parent
 logger = logging.getLogger(__name__)

@@ -1,14 +1,13 @@
 from operator import xor
 
-from torch.utils.data import ConcatDataset, DataLoader
-
 from hydra.utils import instantiate
 from omegaconf import DictConfig
+from torch.utils.data import ConcatDataset, DataLoader
 
 import hw_asr.augmentations
 import hw_asr.datasets
-from hw_asr.text_encoder.base_text_encoder import BaseTextEncoder
 from hw_asr.collate_fn.collate import collate_fn
+from hw_asr.text_encoder.base_text_encoder import BaseTextEncoder
 
 
 def get_dataloaders(cfg: DictConfig, text_encoder: BaseTextEncoder):

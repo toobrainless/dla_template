@@ -1,6 +1,6 @@
+import torch
 import torch_audiomentations
 from torch import Tensor
-import torch
 
 from hw_asr.augmentations.base import AugmentationBase
 

@@ -26,23 +26,13 @@ class ConvolutionalModule(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def __call__(self, x):
-        # print("ConvolutionalModule")
-        # print(f"{x.shape=}")
         output = self.norm(x)
         output = output.transpose(-1, -2)
-        # print(f"{output.shape=}")
         output = self.pointwise_conv1(output)
-        # print(f"after pointwise {output.shape=}")
         output = self.glu(output)
-        # print(f"{output.shape=}")
         output = self.depthwise_conv(output)
-        # print(f"{output.shape=}")
         output = self.bn(output)
-        # print(f"{output.shape=}")
         output = self.silu(output)
-        # print(f"{output.shape=}")
         output = self.pointwise_conv2(output)
-        # print(f"{output.shape=}")
         output = self.dropout(output).transpose(-1, -2) + x
-        # print(f"{output.shape=}")
         return output

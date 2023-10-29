@@ -1,9 +1,9 @@
-from urllib.request import urlretrieve
+import gzip
 import os
-import gzip
 import shutil
-import gzip
-import os, shutil, wget
+from urllib.request import urlretrieve
+
+import wget
 
 if not os.path.exists("language_model"):
     os.mkdir("language_model")

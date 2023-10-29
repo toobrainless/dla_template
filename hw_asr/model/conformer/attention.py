@@ -10,12 +10,7 @@ class MultiHeadedSelfAttentionModule(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def __call__(self, x):
-        # print("MultiHeadedSelfAttentionModule")
-        # print(f"{x.shape=}")
         output = self.norm(x)
-        # print(f"{output.shape=}")
         output = self.attention(output, output, output, need_weights=False)[0]
-        # print(f"{output.shape=}")
         output = self.dropout(output) + x
-        # print(f"{output.shape=}")
         return output

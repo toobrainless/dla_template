@@ -40,20 +40,15 @@ class ConformerEncoder(nn.Module):
 
     def forward(self, spectrogram, **batch):
         x = spectrogram.transpose(-1, -2)
-        # print(f"{x.shape=}")
         x = self.subsampling(x.unsqueeze(1)).squeeze(1)
-        # print(f"{x.shape=}")
         x = self.fc1(x)
-        # print(f"{x.shape=}")
         x = self.dropout(x)
-        # print(f"{x.shape=}")
         x = self.blocks(x)
         x = self.fc2(x)
 
         output = {"logits": x}
 
         return output
-    
 
     def transform_input_lengths(self, input_lengths):
         return input_lengths // 2

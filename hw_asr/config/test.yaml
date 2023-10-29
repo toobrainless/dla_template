@@ -18,7 +18,7 @@ test_other:
   _target_: ${datasets_targets[${platform}]}
   part: "test-other"
 
-checkpoint_path: "conformer/checkpoint-epoch22.pth"
+checkpoint_path: "asr_model/checkpoint-epoch22.pth"
 
 metrics:
     - _target_: hw_asr.metric.ArgmaxWERCERMetric

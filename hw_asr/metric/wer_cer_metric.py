@@ -1,15 +1,4 @@
-from typing import List
-
-import numpy as np
-import torch
-from torch import Tensor
-
-from hw_asr.text_encoder import BaseTextEncoder
 from functools import partial
-
-from .base_metric import BaseMetric
-from .utils import calc_wer, calc_cer
-
 from typing import List
 
 import numpy as np
@@ -19,7 +8,7 @@ from torch import Tensor
 from hw_asr.text_encoder import BaseTextEncoder
 
 from .base_metric import BaseMetric
-from .utils import calc_wer
+from .utils import calc_cer, calc_wer
 
 
 class WERCERBaseMetric(BaseMetric):

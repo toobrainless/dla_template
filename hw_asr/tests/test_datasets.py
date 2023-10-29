@@ -1,16 +1,12 @@
 import unittest
 
 import torch
-
-from hw_asr.datasets import (
-    LibrispeechDataset,
-    CustomDirAudioDataset,
-    CustomAudioDataset,
-)
-from hw_asr.utils import ROOT_PATH
-
-from hydra import initialize, compose
+from hydra import compose, initialize
 from hydra.utils import instantiate
+
+from hw_asr.datasets import (CustomAudioDataset, CustomDirAudioDataset,
+                             LibrispeechDataset)
+from hw_asr.utils import ROOT_PATH
 
 
 class TestDataset(unittest.TestCase):

@@ -68,7 +68,6 @@ def main(cfg: DictConfig):
         ]
         for metric_type, metrics_list in cfg["metrics"].items()
     }
-    print(f"{metrics=}")
 
     # build optimizer, learning rate scheduler. delete every line containing lr_scheduler for
     # disabling scheduler

@@ -1,8 +1,8 @@
 import logging
 from typing import List
-from torch.nn.utils.rnn import pad_sequence
 
 import torch
+from torch.nn.utils.rnn import pad_sequence
 
 logger = logging.getLogger(__name__)
 

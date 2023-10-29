@@ -1,7 +1,7 @@
+import librosa
+import torch
 import torch_audiomentations
 from torch import Tensor
-import torch
-import librosa
 
 from hw_asr.augmentations.base import AugmentationBase
 
