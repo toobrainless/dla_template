@@ -1,8 +1,8 @@
-from typing import List, Callable
+from typing import Callable, List
 
 from torch import Tensor
 
-from hw_asr.augmentations.base import AugmentationBase
+from .base import AugmentationBase
 
 
 class SequentialAugmentation(AugmentationBase):
