@@ -61,6 +61,8 @@ For example, to change batch size and number of epochs:
 poetry run python3 train.py data.train.batch_size=32 trainer.epochs=10
 ```
 
+The train config is stored in `configs/train.yaml`, it contains path to the datasets, model, optimizer, scheduler, trainer and other parameters. Also you can change it manually or create your own config file.
+
 ## Testing
 
 To evaluate model run the following script:
