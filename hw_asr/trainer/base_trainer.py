@@ -1,10 +1,14 @@
+import logging
+import os
 from abc import abstractmethod
+from pathlib import Path
 
 import torch
 from numpy import inf
 
-from hw_asr.base import BaseModel
+from hw_asr.model import BaseModel
 from hw_asr.logger import get_visualizer
+from hw_asr.utils.util import getcwd
 
 
 class BaseTrainer:
@@ -12,10 +16,20 @@ class BaseTrainer:
     Base class for all trainers
     """
 
-    def __init__(self, model: BaseModel, criterion, metrics, optimizer, config, device):
+    def __init__(
+        self,
+        model: BaseModel,
+        criterion,
+        metrics,
+        optimizer,
+        config,
+        device,
+        keyboard_interrupt_save,
+    ):
         self.device = device
         self.config = config
-        self.logger = config.get_logger("trainer", config["trainer"]["verbosity"])
+        self.logger = logging.getLogger("trainer")
+        self.keyboard_interrupt_save = keyboard_interrupt_save
 
         self.model = model
         self.criterion = criterion
@@ -45,12 +59,11 @@ class BaseTrainer:
 
         self.start_epoch = 1
 
-        self.checkpoint_dir = config.save_dir
+        self.checkpoint_dir = Path(getcwd())
+        print(f"{os.getcwd()=}")
 
         # setup visualization writer instance
-        self.writer = get_visualizer(
-            config, self.logger, cfg_trainer["visualize"]
-        )
+        self.writer = get_visualizer(config, self.logger, cfg_trainer["visualize"])
 
         if config.resume is not None:
             self._resume_checkpoint(config.resume)
@@ -68,8 +81,9 @@ class BaseTrainer:
         try:
             self._train_process()
         except KeyboardInterrupt as e:
-            self.logger.info("Saving model on keyboard interrupt")
-            self._save_checkpoint(self._last_epoch, save_best=False)
+            if self.keyboard_interrupt_save:
+                self.logger.info("Saving model on keyboard interrupt")
+                self._save_checkpoint(self._last_epoch, save_best=False)
             raise e
 
     def _train_process(self):
@@ -176,8 +190,8 @@ class BaseTrainer:
 
         # load optimizer state from checkpoint only when optimizer type is not changed.
         if (
-                checkpoint["config"]["optimizer"] != self.config["optimizer"] or
-                checkpoint["config"]["lr_scheduler"] != self.config["lr_scheduler"]
+            checkpoint["config"]["optimizer"] != self.config["optimizer"]
+            or checkpoint["config"]["lr_scheduler"] != self.config["lr_scheduler"]
         ):
             self.logger.warning(
                 "Warning: Optimizer or lr_scheduler given in config file is different "

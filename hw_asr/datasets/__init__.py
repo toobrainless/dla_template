@@ -1,13 +1,14 @@
-from hw_asr.datasets.custom_audio_dataset import CustomAudioDataset
-from hw_asr.datasets.custom_dir_audio_dataset import CustomDirAudioDataset
-from hw_asr.datasets.librispeech_dataset import LibrispeechDataset
-from hw_asr.datasets.ljspeech_dataset import LJspeechDataset
-from hw_asr.datasets.common_voice import CommonVoiceDataset
+from .common_voice import CommonVoiceDataset
+from .custom_audio_dataset import CustomAudioDataset
+from .custom_dir_audio_dataset import CustomDirAudioDataset
+from .librispeech_dataset import DataSphereLibrispeechDataset, LibrispeechDataset
+from .ljspeech_dataset import LJspeechDataset
 
 __all__ = [
     "LibrispeechDataset",
+    "DataSphereLibrispeechDataset",
     "CustomDirAudioDataset",
     "CustomAudioDataset",
     "LJspeechDataset",
-    "CommonVoiceDataset"
+    "CommonVoiceDataset",
 ]
