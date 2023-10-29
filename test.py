@@ -4,16 +4,12 @@ import os
 import sys
 from pathlib import Path
 from string import ascii_lowercase
-
-import click
 import hydra
-import numpy as np
 import torch
 from hydra.utils import get_original_cwd, instantiate, to_absolute_path
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
-from hw_asr.metric import calc_cer, calc_wer
 from hw_asr.trainer import Trainer
 from hw_asr.utils import MetricTracker
 from hw_asr.utils.object_loading import get_dataloaders
