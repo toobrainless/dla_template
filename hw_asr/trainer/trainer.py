@@ -129,7 +129,7 @@ class Trainer(BaseTrainer):
                     if batch_num + 1 >= self.accumulation_steps:
                         break
             except RuntimeError as e:
-                if "out of memory" in str(e) and self.skip_oom:
+                if ("out of memory" in str(e)) and self.skip_oom:
                     self.logger.warning("OOM on batch. Skipping batch.")
                     for p in self.model.parameters():
                         if p.grad is not None:

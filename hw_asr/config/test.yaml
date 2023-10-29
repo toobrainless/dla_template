@@ -29,9 +29,9 @@ metrics:
     - _target_: hw_asr.metric.LMBeamSearchWERCERMetric
       name: BS+LM
       beam_size: 150
-    - _target_: hw_asr.metric.CustomBeamSearchWERCERMetric
-      name: CUSTOM BS
-      beam_size: 4
+    # - _target_: hw_asr.metric.CustomBeamSearchWERCERMetric
+    #   name: CUSTOM BS
+    #   beam_size: 4
 
 preprocessing:
   sr: 16000

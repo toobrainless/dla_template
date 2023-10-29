@@ -53,7 +53,7 @@ text_encoder:
   _target_: hw_asr.text_encoder.ctc_char_text_encoder.CTCCharTextEncoder
   lm_params:
     vocab_path: "language_model/librispeech-vocab.txt"
-    kenlm_model_path: "language_model/3-gram.arpa"
+    kenlm_model_path: "language_model/lowercase_3-gram.arpa"
 augmentations:
   wave: []
   spectrogram:
@@ -64,20 +64,20 @@ augmentations:
       time_width: 0.05
 data:
   train:
-    batch_size: 8
-    num_workers: 32
+    batch_size: 32
+    num_workers: 8
     datasets: 
       - ${train_clean_100}
       - ${train_clean_360}
       - ${train_other_500}
   test-other:
-    batch_size: 8
-    num_workers: 32
+    batch_size: 32
+    num_workers: 8
     datasets:
       - ${test_other}
   test-clean:
-    batch_size: 8
-    num_workers: 32
+    batch_size: 32
+    num_workers: 8
     datasets:
       - ${test_clean}
 preprocessing:
