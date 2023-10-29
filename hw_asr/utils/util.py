@@ -1,12 +1,19 @@
 import json
+import logging
 from collections import OrderedDict
 from itertools import repeat
 from pathlib import Path
 
+import hydra
 import pandas as pd
 import torch
 
 ROOT_PATH = Path(__file__).absolute().resolve().parent.parent.parent
+logger = logging.getLogger(__name__)
+
+
+def getcwd():
+    return hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
 
 
 def ensure_dir(dirname):
@@ -50,7 +57,16 @@ def prepare_device(n_gpu_use):
             "available on this machine."
         )
         n_gpu_use = n_gpu
-    device = torch.device("cuda:0" if n_gpu_use > 0 else "cpu")
+
+    if n_gpu_use > 0:
+        device = torch.device("cuda:0")
+    # elif torch.backends.mps.is_available():
+    #     device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+
+    logger.info(f"{device=}")
+
     list_ids = list(range(n_gpu_use))
     return device, list_ids
 
@@ -65,12 +81,17 @@ class MetricTracker:
         for col in self._data.columns:
             self._data[col].values[:] = 0
 
-    def update(self, key, value, n=1):
-        # if self.writer is not None:
-        #     self.writer.add_scalar(key, value)
+    def _one_dim_update(self, key, value, n):
         self._data.total[key] += value * n
         self._data.counts[key] += n
         self._data.average[key] = self._data.total[key] / self._data.counts[key]
+
+    def update(self, metric_name, metric_value, n=1):
+        if isinstance(metric_value, dict):
+            for key, value in metric_value.items():
+                self._one_dim_update(f"{metric_name}_{key}", value, n)
+        else:
+            self._one_dim_update(metric_name, metric_value, n)
 
     def avg(self, key):
         return self._data.average[key]
