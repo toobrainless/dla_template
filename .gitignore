@@ -122,3 +122,4 @@ formatter.py
 
 # heavy stuff
 language_model
+asr_model

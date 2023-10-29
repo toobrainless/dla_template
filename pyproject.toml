@@ -10,10 +10,10 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8"
-torch = ">=1.11.0"
-torchvision = ">=0.12.0"
-torchaudio = ">=0.11.0"
+python = ">=3.9"
+torch = "=1.11.0"
+torchvision = "=0.12.0"
+torchaudio = "=0.11.0"
 numpy = "*"
 tqdm = "*"
 tensorboard = "*"
@@ -28,6 +28,9 @@ pyctcdecode = "*"
 pillow = "*"
 llvmlite = "0.40.0"
 numba = "0.57.1"
+gdown = "*"
+wget = "*"
+hydra-core = "1.3"
 
 
 
