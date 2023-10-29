@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.DS_Store
 
 # C extensions
 *.so
@@ -24,6 +25,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+poetry.lock
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -83,7 +85,7 @@ celerybeat-schedule
 .env
 
 # virtualenv
-.venv
+.venv**
 venv/
 ENV/
 
@@ -105,8 +107,18 @@ data/
 input/
 saved/
 wandb/
+outputs/
+train_runs/
+test_runs/
 
 # editor, os cache directory
 .vscode/
 .idea/
 __MACOSX/
+
+# sandboxes
+sandbox.*
+formatter.py
+
+# heavy stuff
+language_model

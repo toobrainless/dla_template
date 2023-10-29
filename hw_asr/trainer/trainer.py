@@ -2,19 +2,20 @@ import random
 from pathlib import Path
 from random import shuffle
 
-import PIL
 import pandas as pd
+import PIL
 import torch
 import torch.nn.functional as F
 from torch.nn.utils import clip_grad_norm_
 from torchvision.transforms import ToTensor
 from tqdm import tqdm
 
-from hw_asr.base import BaseTrainer
-from hw_asr.base.base_text_encoder import BaseTextEncoder
 from hw_asr.logger.utils import plot_spectrogram_to_buf
 from hw_asr.metric.utils import calc_cer, calc_wer
-from hw_asr.utils import inf_loop, MetricTracker
+from hw_asr.text_encoder import BaseTextEncoder
+from hw_asr.utils import MetricTracker, inf_loop
+
+from .base_trainer import BaseTrainer
 
 
 class Trainer(BaseTrainer):
@@ -23,20 +24,29 @@ class Trainer(BaseTrainer):
     """
 
     def __init__(
-            self,
+        self,
+        model,
+        criterion,
+        metrics,
+        optimizer,
+        config,
+        device,
+        dataloaders,
+        text_encoder,
+        lr_scheduler=None,
+        len_epoch=None,
+        skip_oom=True,
+        keyboard_interrupt_save=True,
+    ):
+        super().__init__(
             model,
             criterion,
             metrics,
             optimizer,
             config,
             device,
-            dataloaders,
-            text_encoder,
-            lr_scheduler=None,
-            len_epoch=None,
-            skip_oom=True,
-    ):
-        super().__init__(model, criterion, metrics, optimizer, config, device)
+            keyboard_interrupt_save,
+        )
         self.skip_oom = skip_oom
         self.text_encoder = text_encoder
         self.config = config
@@ -48,16 +58,37 @@ class Trainer(BaseTrainer):
             # iteration-based training
             self.train_dataloader = inf_loop(self.train_dataloader)
             self.len_epoch = len_epoch
-        self.evaluation_dataloaders = {k: v for k, v in dataloaders.items() if k != "train"}
+        self.evaluation_dataloaders = {
+            k: v for k, v in dataloaders.items() if k != "train"
+        }
         self.lr_scheduler = lr_scheduler
-        self.log_step = 50
+        self.log_step = self.config["trainer"].get("log_step", 50)
 
+        shared_metrics = [
+            m for m_list in self.metrics["shared"] for m in m_list.get_metrics()
+        ]
         self.train_metrics = MetricTracker(
-            "loss", "grad norm", *[m.name for m in self.metrics], writer=self.writer
+            "loss",
+            "grad norm",
+            *(
+                [m for m_list in self.metrics["train"] for m in m_list.get_metrics()]
+                + shared_metrics
+            ),
+            writer=self.writer,
         )
         self.evaluation_metrics = MetricTracker(
-            "loss", *[m.name for m in self.metrics], writer=self.writer
+            "loss",
+            *(
+                [
+                    m
+                    for m_list in self.metrics["evaluation"]
+                    for m in m_list.get_metrics()
+                ]
+                + shared_metrics
+            ),
+            writer=self.writer,
         )
+        self.accumulation_steps = self.config["trainer"].get("accumulation_steps", 1)
 
     @staticmethod
     def move_batch_to_device(batch, device: torch.device):
@@ -74,6 +105,7 @@ class Trainer(BaseTrainer):
                 self.model.parameters(), self.config["trainer"]["grad_norm_clip"]
             )
 
+    # TODO implemented batch accumulation but metric calculated only on the last batch
     def _train_epoch(self, epoch):
         """
         Training logic for an epoch
@@ -81,18 +113,21 @@ class Trainer(BaseTrainer):
         :param epoch: Integer, current training epoch.
         :return: A log that contains average loss and metric in this epoch.
         """
+        # self.logger.info(f"start {epoch} epoch")
         self.model.train()
         self.train_metrics.reset()
         self.writer.add_scalar("epoch", epoch)
-        for batch_idx, batch in enumerate(
-                tqdm(self.train_dataloader, desc="train", total=self.len_epoch)
-        ):
+        for batch_idx in tqdm(range(self.len_epoch), desc="train"):
             try:
-                batch = self.process_batch(
-                    batch,
-                    is_train=True,
-                    metrics=self.train_metrics,
-                )
+                for batch_num, batch in enumerate(self.train_dataloader):
+                    batch = self.process_batch(
+                        batch_num,
+                        batch,
+                        is_train=True,
+                        metrics=self.train_metrics,
+                    )
+                    if batch_num + 1 >= self.accumulation_steps:
+                        break
             except RuntimeError as e:
                 if "out of memory" in str(e) and self.skip_oom:
                     self.logger.warning("OOM on batch. Skipping batch.")
@@ -111,9 +146,10 @@ class Trainer(BaseTrainer):
                         epoch, self._progress(batch_idx), batch["loss"].item()
                     )
                 )
-                self.writer.add_scalar(
-                    "learning rate", self.lr_scheduler.get_last_lr()[0]
-                )
+                if self.lr_scheduler is not None:
+                    self.writer.add_scalar(
+                        "learning rate", self.lr_scheduler.get_last_lr()[0]
+                    )
                 self._log_predictions(**batch)
                 self._log_spectrogram(batch["spectrogram"])
                 self._log_scalars(self.train_metrics)
@@ -121,41 +157,48 @@ class Trainer(BaseTrainer):
                 # because we are interested in recent train metrics
                 last_train_metrics = self.train_metrics.result()
                 self.train_metrics.reset()
-            if batch_idx >= self.len_epoch:
-                break
+            # self.logger.info(f"finish {batch_idx} batch")
         log = last_train_metrics
 
         for part, dataloader in self.evaluation_dataloaders.items():
             val_log = self._evaluation_epoch(epoch, part, dataloader)
             log.update(**{f"{part}_{name}": value for name, value in val_log.items()})
 
+        # self.logger.info(f"finish {epoch} epoch")
         return log
 
-    def process_batch(self, batch, is_train: bool, metrics: MetricTracker):
+    def process_batch(self, batch_num, batch, is_train: bool, metrics: MetricTracker):
         batch = self.move_batch_to_device(batch, self.device)
-        if is_train:
+        if is_train and batch_num % self.accumulation_steps == 0:
             self.optimizer.zero_grad()
         outputs = self.model(**batch)
-        if type(outputs) is dict:
+        if isinstance(outputs, dict):
             batch.update(outputs)
         else:
             batch["logits"] = outputs
-
         batch["log_probs"] = F.log_softmax(batch["logits"], dim=-1)
         batch["log_probs_length"] = self.model.transform_input_lengths(
             batch["spectrogram_length"]
         )
         batch["loss"] = self.criterion(**batch)
-        if is_train:
-            batch["loss"].backward()
-            self._clip_grad_norm()
-            self.optimizer.step()
-            if self.lr_scheduler is not None:
-                self.lr_scheduler.step()
-
-        metrics.update("loss", batch["loss"].item())
-        for met in self.metrics:
-            metrics.update(met.name, met(**batch))
+        if (batch_num + 1) % self.accumulation_steps == 0:
+            if is_train:
+                batch["loss"].backward()
+                self._clip_grad_norm()
+                self.optimizer.step()
+                if self.lr_scheduler is not None:
+                    self.lr_scheduler.step()
+            # TODO fix this dumb shit
+            with torch.no_grad():
+                metrics.update("loss", batch["loss"].item())
+                for met in self.metrics["shared"]:
+                    metrics.update(met.name, met(**batch))
+                if is_train:
+                    for met in self.metrics["train"]:
+                        metrics.update(met.name, met(**batch))
+                else:
+                    for met in self.metrics["evaluation"]:
+                        metrics.update(met.name, met(**batch))
         return batch
 
     def _evaluation_epoch(self, epoch, part, dataloader):
@@ -169,11 +212,12 @@ class Trainer(BaseTrainer):
         self.evaluation_metrics.reset()
         with torch.no_grad():
             for batch_idx, batch in tqdm(
-                    enumerate(dataloader),
-                    desc=part,
-                    total=len(dataloader),
+                enumerate(dataloader),
+                desc=part,
+                total=len(dataloader),
             ):
                 batch = self.process_batch(
+                    self.accumulation_steps - 1,
                     batch,
                     is_train=False,
                     metrics=self.evaluation_metrics,
@@ -199,14 +243,14 @@ class Trainer(BaseTrainer):
         return base.format(current, total, 100.0 * current / total)
 
     def _log_predictions(
-            self,
-            text,
-            log_probs,
-            log_probs_length,
-            audio_path,
-            examples_to_log=10,
-            *args,
-            **kwargs,
+        self,
+        text,
+        log_probs,
+        log_probs_length,
+        audio_path,
+        examples_to_log=10,
+        *args,
+        **kwargs,
     ):
         # TODO: implement logging of beam search results
         if self.writer is None:
@@ -218,10 +262,21 @@ class Trainer(BaseTrainer):
         ]
         argmax_texts_raw = [self.text_encoder.decode(inds) for inds in argmax_inds]
         argmax_texts = [self.text_encoder.ctc_decode(inds) for inds in argmax_inds]
-        tuples = list(zip(argmax_texts, text, argmax_texts_raw, audio_path))
+        tuples = list(
+            zip(
+                argmax_texts,
+                text,
+                argmax_texts_raw,
+                audio_path,
+                kwargs["audio"],
+                kwargs["audio_length"],
+            )
+        )
         shuffle(tuples)
         rows = {}
-        for pred, target, raw_pred, audio_path in tuples[:examples_to_log]:
+        for pred, target, raw_pred, audio_path, audio, audio_length in tuples[
+            :examples_to_log
+        ]:
             target = BaseTextEncoder.normalize_text(target)
             wer = calc_wer(target, pred) * 100
             cer = calc_cer(target, pred) * 100
@@ -232,8 +287,14 @@ class Trainer(BaseTrainer):
                 "predictions": pred,
                 "wer": wer,
                 "cer": cer,
+                "audio": self.writer.wandb.Audio(
+                    audio[:audio_length],
+                    sample_rate=self.config["preprocessing"]["sr"],
+                ),
             }
-        self.writer.add_table("predictions", pd.DataFrame.from_dict(rows, orient="index"))
+        self.writer.add_table(
+            "predictions", pd.DataFrame.from_dict(rows, orient="index")
+        )
 
     def _log_spectrogram(self, spectrogram_batch):
         spectrogram = random.choice(spectrogram_batch.cpu())
@@ -258,4 +319,5 @@ class Trainer(BaseTrainer):
         if self.writer is None:
             return
         for metric_name in metric_tracker.keys():
+            self.writer.add_scalar(f"{metric_name}", metric_tracker.avg(metric_name))
             self.writer.add_scalar(f"{metric_name}", metric_tracker.avg(metric_name))

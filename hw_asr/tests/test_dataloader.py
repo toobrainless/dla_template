@@ -1,21 +1,23 @@
 import unittest
 
+from hydra import compose, initialize
+from hydra.utils import instantiate
 from tqdm import tqdm
 
 from hw_asr.collate_fn.collate import collate_fn
 from hw_asr.datasets import LibrispeechDataset
-from hw_asr.tests.utils import clear_log_folder_after_use
 from hw_asr.utils.object_loading import get_dataloaders
-from hw_asr.utils.parse_config import ConfigParser
 
 
 class TestDataloader(unittest.TestCase):
     def test_collate_fn(self):
-        config_parser = ConfigParser.get_test_configs()
-        with clear_log_folder_after_use(config_parser):
+        with initialize(version_base=None, config_path="."):
+            cfg = compose(config_name="config")
+            alphabet = list(" abcdefghijklmnopqrstuvwxyz")
             ds = LibrispeechDataset(
-                "dev-clean", text_encoder=config_parser.get_text_encoder(),
-                config_parser=config_parser
+                "dev-clean",
+                text_encoder=instantiate(cfg["text_encoder"], alphabet=alphabet),
+                cfg=cfg,
             )
 
             batch_size = 3
@@ -44,11 +46,18 @@ class TestDataloader(unittest.TestCase):
 
     def test_dataloaders(self):
         _TOTAL_ITERATIONS = 10
-        config_parser = ConfigParser.get_test_configs()
-        with clear_log_folder_after_use(config_parser):
-            dataloaders = get_dataloaders(config_parser, config_parser.get_text_encoder())
+        with initialize(version_base=None, config_path="."):
+            cfg = compose(config_name="config")
+            alphabet = list(" abcdefghijklmnopqrstuvwxyz")
+            dataloaders = get_dataloaders(
+                cfg, instantiate(cfg["text_encoder"], alphabet=alphabet)
+            )
             for part in ["train", "val"]:
                 dl = dataloaders[part]
-                for i, batch in tqdm(enumerate(iter(dl)), total=_TOTAL_ITERATIONS,
-                                     desc=f"Iterating over {part}"):
-                    if i >= _TOTAL_ITERATIONS: break
+                for i, batch in tqdm(
+                    enumerate(iter(dl)),
+                    total=_TOTAL_ITERATIONS,
+                    desc=f"Iterating over {part}",
+                ):
+                    if i >= _TOTAL_ITERATIONS:
+                        break
